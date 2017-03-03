@@ -128,7 +128,10 @@ def encrypt():
     blocks = file_len / size_of_block
     i = 1
     while True:
-        process_label["text"] = str(round(i/blocks*100)) + "%"
+        percent = min(round(i/blocks * 100), 100)
+        # В небольших файлах на последнем шаге процент может стать больше 100.
+        # В этом случае указываем 100
+        process_label["text"] = str(percent) + "%"
         i += 1
         root.update()
         block = in_file.read(size_of_block)
@@ -154,7 +157,10 @@ def decrypt():
     blocks = sum(1 for line in open(in_file.name))  # считаем количество строк в файле
     i = 1
     while True:
-        process_label["text"] = str(round(i / blocks * 100)) + "%"
+        percent = min(round(i/blocks * 100), 100)
+        # В небольших файлах на последнем шаге процент может стать больше 100.
+        # В этом случае указываем 100
+        process_label["text"] = str(percent) + "%"
         i += 1
         root.update()
         input_str = in_file.readline()
