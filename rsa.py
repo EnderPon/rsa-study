@@ -2,11 +2,13 @@
 from tkinter import *
 from tkinter import filedialog
 import os
+import threading
 
 import primes
 
 KEY_LENGTH = 1024
 key_lines = None
+key_type = "none"
 
 
 def change_state(state):
@@ -38,18 +40,19 @@ def save_key(e, n, d):
 
 
 def generate_key():
+    lock_all()
     change_state(u"Генерируется ключ")
     primes.get_prime_list()
     process_label["text"] = "1/3"
-    p = primes.generate_prime(KEY_LENGTH, root)
+    p = primes.generate_prime(KEY_LENGTH)
     process_label["text"] = "2/3"
-    q = primes.generate_prime(KEY_LENGTH, root)
+    q = primes.generate_prime(KEY_LENGTH)
     if p == -1 | q == -1:
         return
     n = p * q
     fi = (p-1) * (q - 1)
     process_label["text"] = "3/3"
-    e = primes.generate_prime_range(1, fi, root)
+    e = primes.generate_prime_range(1, fi)
     if e == -1:
         return
     d = euclid_alg(e, fi)
@@ -58,6 +61,7 @@ def generate_key():
     save_key(e, n, d)
     change_state(u"Ключ сгенерирован")
     process_label["text"] = ""
+    unlock_all()
     return
 
 
@@ -73,6 +77,7 @@ def regenerate_key():
 
 def open_key_files():
     global key_lines
+    global key_type
     if os.path.exists("private.key"):
         key_file = open("private.key")
         change_state(u"Открыт приватный ключ\nДоступно шифрование и дешифровка")
@@ -80,11 +85,13 @@ def open_key_files():
         encrypt_button["state"] = NORMAL
         decrypt_button["state"] = NORMAL
         key_lines = key_file.readlines()
+        key_type = "priv"
     elif os.path.exists("public.key"):
         key_file = open("public.key")
         change_state(u"Открыт публичный ключ\nДоступно только шифрование")
         encrypt_button["state"] = NORMAL
         key_lines = key_file.readlines()
+        key_type = "pub"
     else:
         change_state(u"Ключ не найден.\nОн должен лежать в папке с программой\nи называться public.key или private.key")
     return
@@ -119,6 +126,7 @@ def convert_from_int(number_int):
 
 def encrypt():
     global key_lines
+    lock_all()
     change_state(u"Шифрование")
     in_file = filedialog.askopenfile(mode='rb')
     out_file_name = in_file.name + '.rsa'
@@ -133,23 +141,25 @@ def encrypt():
         # В этом случае указываем 100
         process_label["text"] = str(percent) + "%"
         i += 1
-        root.update()
+        # root.update()
         block = in_file.read(size_of_block)
         if len(block) == 0:
             change_state(u"Шифрование окончено")
             in_file.close()
             out_file.close()
-            return
+            break
         block_int = convert_to_int(block)
         if block_int > int(key_lines[1]):
             print(u"Странно")
         crypto = pow(block_int, int(key_lines[0]), int(key_lines[1]))
         # возводим число_строку в степень E по модулю N
         out_file.write(bytes(str(crypto) + '\n', "UTF-8"))
+    unlock_all()
 
 
 def decrypt():
     global key_lines
+    lock_all()
     in_file = filedialog.askopenfile(mode='rb')
     change_state(u"Дешифрование")
     out_file_name = in_file.name + '.nonrsa'
@@ -162,13 +172,13 @@ def decrypt():
         # В этом случае указываем 100
         process_label["text"] = str(percent) + "%"
         i += 1
-        root.update()
+        # root.update()
         input_str = in_file.readline()
         if len(input_str) == 0:
             in_file.close()
             out_file.close()
             change_state(u"Дешифрование окончено")
-            return
+            break
         input_int = int(input_str)
         if input_int > int(key_lines[1]):
             print(u"Странно")
@@ -176,15 +186,49 @@ def decrypt():
         # строка в степени D по модулю N
         output_str = convert_from_int(output_int)
         out_file.write(output_str)
+    unlock_all()
 
+
+def unlock_all():
+    generate_button["state"] = NORMAL
+    open_button["state"] = NORMAL
+    if key_type == "pub":
+        encrypt_button["state"] = NORMAL
+    if key_type == "priv":
+        encrypt_button["state"] = NORMAL
+        regen_button["state"] = NORMAL
+        decrypt_button["state"] = NORMAL
+
+
+def lock_all():
+    generate_button["state"] = DISABLED
+    open_button["state"] = DISABLED
+    encrypt_button["state"] = DISABLED
+    regen_button["state"] = DISABLED
+    decrypt_button["state"] = DISABLED
+
+
+def enc():
+    t = threading.Thread(target=encrypt)
+    t.start()
+
+
+def dec():
+    t = threading.Thread(target=decrypt)
+    t.start()
+
+
+def gen():
+    t = threading.Thread(target=generate_key)
+    t.start()
 
 root = Tk()
 
-generate_button = Button(text=u"Сгенгерировать ключи", command=generate_key, state=NORMAL)
+generate_button = Button(text=u"Сгенгерировать ключи", command=gen, state=NORMAL)
 open_button = Button(text=u"Открыть ключи", command=open_key_files)
 regen_button = Button(text=u"Создать открытый ключ", command=regenerate_key, state=DISABLED)
-encrypt_button = Button(text=u"Зашифровать...", command=encrypt, state=DISABLED)
-decrypt_button = Button(text=u"Дешифровать...", command=decrypt, state=DISABLED)
+encrypt_button = Button(text=u"Зашифровать...", command=enc, state=DISABLED)
+decrypt_button = Button(text=u"Дешифровать...", command=dec, state=DISABLED)
 state_label = Label(text=u"Состояние")
 process_label = Label(text=u"Процесс")
 

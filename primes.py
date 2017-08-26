@@ -71,13 +71,9 @@ def test_fermat(number):
     return True
 
 
-def generate_prime(length, root=None):
-    # root - грязный костыль для защиты от подвисания окна
-    # добавлен уже спустя год после написания основной программы
+def generate_prime(length):
     cycles = 1000000
     for i in range(cycles):
-        if root is not None:
-            root.update()
         n = random.randint(2 ** (length-1), 2 ** length)
         if check_with_primes(n) is True and test_fermat(n) is True:
             print("\n")
@@ -89,11 +85,9 @@ def generate_prime(length, root=None):
     return -1
 
 
-def generate_prime_range(start, stop, root=None):
+def generate_prime_range(start, stop):
     cycles = 1000000
     for i in range(cycles):
-        if root is not None:
-            root.update()
         n = random.randint(start, stop)
         if check_with_primes(n) is True and test_fermat(n) is True:
             print("\n", flush=True)
