@@ -7,6 +7,8 @@ import threading
 import primes
 
 KEY_LENGTH = 1024
+THREADS = 4
+BYTES_FOR_BLOCK_SIZE = 2
 key_lines = None
 key_type = "none"
 
@@ -43,18 +45,17 @@ def generate_key():
     lock_all()
     change_state(u"Генерируется ключ")
     primes.get_prime_list()
-    process_label["text"] = "1/3"
-    p = primes.generate_prime(KEY_LENGTH)
-    process_label["text"] = "2/3"
-    q = primes.generate_prime(KEY_LENGTH)
+    process_label["text"] = "1/2"
+    p = primes.generate_prime_threads(KEY_LENGTH, THREADS)
+    process_label["text"] = "2/2"
+    q = primes.generate_prime_threads(KEY_LENGTH, THREADS)
     if p == -1 | q == -1:
+        change_state(u"Ошибка генерации ключа")
+        unlock_all()
         return
     n = p * q
     fi = (p-1) * (q - 1)
-    process_label["text"] = "3/3"
-    e = primes.generate_prime_range(1, fi)
-    if e == -1:
-        return
+    e = 65537
     d = euclid_alg(e, fi)
     if d == 0:
         print(u"Что-то пошло не так")

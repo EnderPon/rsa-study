@@ -1,5 +1,7 @@
 # Набор функций для генерации простых чисел заданной длины.
 import random
+import multiprocessing
+import math
 
 global_primes_list = []      # хранение списка простых чисел
 CHECK_STEPS = 100            # раундов для проверки Ферма
@@ -57,7 +59,7 @@ def eratosthenes():
 def check_with_primes(number):
     for prime in global_primes_list:
         if number % prime == 0:
-            print(u"+", end='', flush=True)
+            #print(u"+", end='', flush=True)
             return False
     return True
 
@@ -66,23 +68,49 @@ def test_fermat(number):
     for i in range(CHECK_STEPS):
         a = random.randint(2, number)
         if pow(a, number-1, number) != 1:
-            print(u"-", end='', flush=True)
+            #print(u"-", end='', flush=True)
             return False
     return True
 
+# def generate_prime_threads(len, threads):
 
-def generate_prime(length):
-    cycles = 1000000
+
+def generate_prime(length, cycles=1000000):
     for i in range(cycles):
         n = random.randint(2 ** (length-1), 2 ** length)
         if check_with_primes(n) is True and test_fermat(n) is True:
-            print("\n")
+            # print("\n")
             # print(u"Вышло.")
             # print(n)
             # print(u"................")
             return n
-    print(u"Не вышло.")
+    # print(u"Не вышло.")
     return -1
+
+
+def generate_prime_threads(length, threads_c):
+    q = multiprocessing.Queue()
+    a_stop_event = multiprocessing.Event()
+
+    def generate_key_thread(length):
+        while not a_stop_event.is_set():
+            a = generate_prime(length, 1)
+            if a > 0:
+                q.put(a)
+                return
+
+    q.empty()
+    a_stop_event.clear()
+    threads = [multiprocessing.Process(target=generate_key_thread, args=(length,)) for i in range(threads_c)]
+    for th in threads:
+        th.start()
+    result = q.get()
+    a_stop_event.set()
+    for th in threads:
+        th.join()
+    print("")
+    pretty_print_prime(length, result)
+    return result
 
 
 def generate_prime_range(start, stop):
@@ -92,3 +120,20 @@ def generate_prime_range(start, stop):
         if check_with_primes(n) is True and test_fermat(n) is True:
             print("\n", flush=True)
             return n
+
+
+def pretty_print_prime(length, number):
+    side = math.sqrt(length)
+    if not side.is_integer():
+        return
+    side = int(side/2)
+    encoded = encodeN(number, 16)
+    print("+" + "-"*side + "+")
+    for i in range(side):
+        print("|" + encoded[i*side:(i+1)*side] + "|")
+    print("+" + "-"*int(side) + "+")
+
+
+
+def encodeN(n,N,D="1234567890ABCDEF"):
+    return (encodeN(n//N,N)+D[n%N]).lstrip("0") if n>0 else "0"
